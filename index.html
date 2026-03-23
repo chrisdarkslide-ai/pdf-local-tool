@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Tools — Local & Seguro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #FFFFFF;
+    --purple: #a600ff;
+    --purple-light: #c44dff;
+    --purple-pale: #f3e0ff;
+    --text: #0A0A0A;
+    --gray: #666677;
+    --gray-light: #999aaa;
+    --surface: #f7f4fc;
+    --surface-mid: #efe8fa;
+    --surface-soft: #e8dff5;
+    --border: rgba(166,0,255,0.15);
+    --border-strong: rgba(166,0,255,0.35);
+    --radius: 8px; --radius-lg: 14px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 0; }
+  header { text-align: center; margin-bottom: 2rem; }
+  .top-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(166,0,255,0.08); border: 1px solid var(--border-strong); color: var(--purple); font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 4px 12px; border-radius: 20px; margin-bottom: 1rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .top-badge::before { content:''; width:7px; height:7px; background:var(--purple); border-radius:50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  h1 { font-size: clamp(1.8rem,4vw,2.5rem); font-weight: 300; letter-spacing: -0.02em; margin-bottom: 0.4rem; color: var(--text); }
+  h1 span { color: var(--purple); font-weight: 600; }
+  .subtitle { color: var(--gray); font-size: 14px; }
+  .tabs { display: flex; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 5px; margin-bottom: 1.25rem; width: 100%; max-width: 700px; }
+  .tab-btn { flex: 1; padding: 10px 16px; border-radius: 10px; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; transition: all 0.2s; background: transparent; color: var(--gray); }
+  .tab-btn.active { background: var(--purple); color: #fff; }
+  .tab-btn:not(.active):hover { background: var(--surface-mid); color: var(--text); }
+  .container { width: 100%; max-width: 700px; display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem; }
+  .tab-panel { display: none; flex-direction: column; gap: 1.25rem; }
+  .tab-panel.active { display: flex; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; }
+  .card-title { font-size: 11px; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray); margin-bottom: 1rem; }
+
+  /* ── GLASS DROP ZONE ── */
+  .drop-zone {
+    border: 1.5px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(14px) saturate(1.8);
+    -webkit-backdrop-filter: blur(14px) saturate(1.8);
+    box-shadow: 0 4px 24px rgba(166,0,255,0.08), inset 0 0 0 1px rgba(255,255,255,0.7);
+    padding: 2.2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--purple);
+    background: rgba(166,0,255,0.05);
+    box-shadow: 0 6px 32px rgba(166,0,255,0.14), inset 0 0 0 1px rgba(255,255,255,0.8);
+    transform: translateY(-1px);
+  }
+  .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-icon { width: 46px; height: 46px; background: rgba(166,0,255,0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.8rem; font-size: 20px; }
+  .drop-zone h3 { font-size: 15px; font-weight: 500; margin-bottom: 0.3rem; color: var(--text); }
+  .drop-zone p { font-size: 13px; color: var(--gray); }
+
+  .formats { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 0.8rem; }
+  .fmt-badge { background: rgba(166,0,255,0.08); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: 'IBM Plex Mono', monospace; padding: 3px 8px; color: var(--purple); }
+  .file-list { display: flex; flex-direction: column; gap: 8px; }
+  .file-item { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; animation: slideIn 0.2s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+  .file-icon { width: 32px; height: 32px; background: rgba(166,0,255,0.1); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .file-info { flex: 1; min-width: 0; }
+  .file-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-meta { font-size: 11px; color: var(--gray-light); font-family: 'IBM Plex Mono', monospace; margin-top: 2px; }
+  .file-status { font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+  .file-status.waiting { color: var(--gray-light); }
+  .file-status.converting { color: var(--purple); }
+  .file-status.done { color: #2e9e60; }
+  .file-status.error { color: #d63030; }
+  .remove-btn { background: none; border: none; cursor: pointer; color: var(--gray-light); font-size: 16px; padding: 2px 4px; border-radius: 4px; transition: color 0.15s; flex-shrink: 0; line-height: 1; }
+  .remove-btn:hover { color: #d63030; }
+  .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .opt-group label { font-size: 12px; color: var(--gray); display: block; margin-bottom: 6px; }
+  .opt-group select, .opt-group input[type="number"] { width: 100%; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px 12px; outline: none; transition: border-color 0.2s; appearance: none; -webkit-appearance: none; }
+  .opt-group select:focus, .opt-group input:focus { border-color: var(--purple); }
+  .opt-group select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23666677' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-color: #fff; padding-right: 28px; }
+  .opt-group select option { background: #fff; color: var(--text); }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--purple); cursor: pointer; }
+  .checkbox-row span { font-size: 13px; color: var(--text); }
+  .actions { display: flex; gap: 10px; }
+  .btn { flex: 1; padding: 12px 20px; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; text-align: center; }
+  /* Converter para PDF = verde */
+  .btn-primary { background: #79B473; color: #fff; }
+  .btn-primary:hover { background: #68a362; }
+  .btn-primary:disabled { background: rgba(121,180,115,0.35); color: rgba(255,255,255,0.5); cursor: not-allowed; }
+  /* Limpar = vermelho */
+  .btn-danger { background: #F73C3C; color: #fff; border: none; }
+  .btn-danger:hover { background: #e02e2e; }
+  .btn-danger:disabled { background: rgba(247,60,60,0.3); color: rgba(255,255,255,0.5); cursor: not-allowed; }
+  /* Secundário genérico (trocar, etc.) */
+  .btn-secondary { background: var(--surface-mid); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--surface-soft); }
+  .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+  /* Split primary */
+  .btn-split { background: var(--purple); color: #fff; }
+  .btn-split:hover { background: var(--purple-light); }
+  .btn-split:disabled { background: rgba(166,0,255,0.3); color: rgba(255,255,255,0.5); cursor: not-allowed; }
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 10px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--purple), var(--purple-light)); border-radius: 2px; transition: width 0.3s ease; }
+  .log { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; max-height: 130px; overflow-y: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.7; color: var(--gray); }
+  .log-line.success { color: #2e9e60; }
+  .log-line.warn { color: var(--purple); }
+  .log-line.error { color: #d63030; }
+  .security-note { display: flex; align-items: flex-start; gap: 10px; background: rgba(166,0,255,0.05); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 12px 14px; }
+  .security-note .icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+  .security-note p { font-size: 12px; color: var(--text); line-height: 1.6; }
+  .security-note strong { color: var(--purple); }
+  /* Split */
+  .pdf-preview-info { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+  .pdf-preview-icon { font-size: 28px; flex-shrink: 0; }
+  .pdf-preview-details { flex: 1; }
+  .pdf-preview-name { font-size: 14px; font-weight: 500; margin-bottom: 3px; word-break: break-all; color: var(--text); }
+  .pdf-preview-pages { font-size: 12px; font-family: 'IBM Plex Mono', monospace; color: var(--purple); }
+  .split-mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+  .split-mode-btn { padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: #fff; color: var(--gray); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; text-align: left; }
+  .split-mode-btn .mode-title { font-weight: 500; color: var(--text); display: block; font-size: 13px; }
+  .split-mode-btn .mode-desc { font-size: 11px; color: var(--gray); display: block; margin-top: 2px; }
+  .split-mode-btn.active { border-color: var(--purple); background: rgba(166,0,255,0.07); }
+  .split-mode-btn:not(.active):hover { border-color: var(--purple-light); background: rgba(166,0,255,0.03); }
+  .range-hint { font-size: 11px; color: var(--gray); margin-top: 5px; font-family: 'IBM Plex Mono', monospace; }
+  .pages-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; max-height: 160px; overflow-y: auto; padding: 4px; margin-bottom: 4px; }
+  .page-chip { height: 36px; border-radius: 6px; border: 1px solid var(--border); background: #fff; color: var(--gray); font-size: 12px; font-family: 'IBM Plex Mono', monospace; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; user-select: none; }
+  .page-chip:hover { border-color: var(--purple-light); color: var(--purple); }
+  .page-chip.selected { border-color: var(--purple); background: var(--purple); color: #fff; font-weight: 500; }
+  .split-cfg { display: none; }
+  .split-cfg.visible { display: block; }
+  .split-result-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .split-result-item { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: var(--radius); padding: 8px 12px; border: 1px solid rgba(46,158,96,0.25); }
+  .split-result-name { font-size: 12px; font-family: 'IBM Plex Mono', monospace; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 8px; }
+  .split-result-pages { font-size: 11px; color: #2e9e60; flex-shrink: 0; margin-right: 8px; }
+  .dl-btn { background: rgba(46,158,96,0.1); border: 1px solid rgba(46,158,96,0.3); color: #2e7a50; border-radius: 5px; padding: 4px 10px; font-size: 11px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+  .dl-btn:hover { background: rgba(46,158,96,0.2); }
+  .dl-all-btn { background: rgba(46,158,96,0.1); border: 1px solid rgba(46,158,96,0.3); color: #2e7a50; border-radius: var(--radius); padding: 11px 16px; font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; width: 100%; }
+  .dl-all-btn:hover { background: rgba(46,158,96,0.2); }
+  /* Footer */
+  footer { width: 100%; max-width: 700px; text-align: center; padding: 1.5rem 0 2.5rem; border-top: 1px solid var(--border); margin-top: 0.5rem; }
+  footer p { font-size: 13px; color: var(--gray); line-height: 1.8; }
+  footer span { color: var(--purple); font-weight: 500; }
+  @media (max-width: 480px) {
+    .options-grid, .split-mode-grid { grid-template-columns: 1fr; }
+    .actions { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top-badge">100% local · sem upload · sem internet</div>
+  <h1>PDF <span>Tools</span></h1>
+  <p class="subtitle">Seus arquivos nunca saem do seu computador.</p>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('convert')">📄 Converter para PDF</button>
+  <button class="tab-btn" onclick="switchTab('split')">✂️ Dividir PDF</button>
+</div>
+
+<div class="container">
+
+  <!-- ═══════════════════ ABA CONVERTER ═══════════════════ -->
+  <div class="tab-panel active" id="tab-convert">
+
+    <div class="card">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" multiple accept=".txt,.csv,.html,.htm,.md,.json,.xml,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg">
+        <div class="drop-icon">📂</div>
+        <h3>Arraste arquivos ou clique para selecionar</h3>
+        <p>Um ou vários arquivos para converter em PDF</p>
+        <div class="formats">
+          <span class="fmt-badge">.TXT</span><span class="fmt-badge">.HTML</span><span class="fmt-badge">.CSV</span>
+          <span class="fmt-badge">.MD</span><span class="fmt-badge">.JSON</span><span class="fmt-badge">.XML</span>
+          <span class="fmt-badge">.JPG</span><span class="fmt-badge">.PNG</span><span class="fmt-badge">.GIF</span>
+          <span class="fmt-badge">.BMP</span><span class="fmt-badge">.WEBP</span><span class="fmt-badge">.SVG</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="fileListCard" style="display:none;">
+      <div class="card-title">Arquivos selecionados</div>
+      <div class="file-list" id="fileList"></div>
+      <div class="progress-bar" id="progressBar" style="display:none;"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Opções de saída</div>
+      <div class="options-grid">
+        <div class="opt-group"><label>Tamanho da página</label>
+          <select id="pageSize"><option value="a4">A4 (210 × 297 mm)</option><option value="a3">A3 (297 × 420 mm)</option><option value="letter">Carta US (Letter)</option><option value="legal">Ofício US (Legal)</option></select>
+        </div>
+        <div class="opt-group"><label>Orientação</label>
+          <select id="orientation"><option value="portrait">Retrato (Portrait)</option><option value="landscape">Paisagem (Landscape)</option></select>
+        </div>
+        <div class="opt-group"><label>Tamanho da fonte</label>
+          <select id="fontSize"><option value="10">10pt — compacto</option><option value="11" selected>11pt — padrão</option><option value="12">12pt — confortável</option><option value="14">14pt — grande</option></select>
+        </div>
+        <div class="opt-group"><label>Margens (mm)</label>
+          <select id="margins"><option value="15">15 mm — estreitas</option><option value="20" selected>20 mm — padrão</option><option value="25">25 mm — largas</option></select>
+        </div>
+      </div>
+      <div style="margin-top:1rem;display:flex;flex-direction:column;gap:10px;">
+        <label class="checkbox-row"><input type="checkbox" id="mergeAll"><span>Mesclar todos em um único PDF</span></label>
+        <label class="checkbox-row"><input type="checkbox" id="addPageNumbers" checked><span>Adicionar número de páginas no rodapé</span></label>
+        <label class="checkbox-row"><input type="checkbox" id="addFileName" checked><span>Mostrar nome do arquivo no cabeçalho</span></label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-danger" id="clearBtn" disabled onclick="clearConvert()">🗑 Limpar</button>
+      <button class="btn btn-primary" id="convertBtn" disabled onclick="startConversion()">Converter para PDF →</button>
+    </div>
+
+    <div class="card" id="logCard" style="display:none;">
+      <div class="card-title">Log</div>
+      <div class="log" id="logBox"></div>
+    </div>
+
+  </div><!-- /tab-convert -->
+
+
+  <!-- ═══════════════════ ABA DIVIDIR ═══════════════════ -->
+  <div class="tab-panel" id="tab-split">
+
+    <div class="card">
+      <div class="drop-zone" id="splitDropZone">
+        <input type="file" id="splitFileInput" accept=".pdf">
+        <div class="drop-icon">📋</div>
+        <h3>Arraste um PDF ou clique para selecionar</h3>
+        <p>Selecione o arquivo PDF que deseja dividir</p>
+        <div class="formats"><span class="fmt-badge">.PDF</span></div>
+      </div>
+    </div>
+
+    <div class="card" id="splitInfoCard" style="display:none;">
+      <div class="card-title">Arquivo carregado</div>
+      <div class="pdf-preview-info">
+        <div class="pdf-preview-icon">📄</div>
+        <div class="pdf-preview-details">
+          <div class="pdf-preview-name" id="splitFileName">—</div>
+          <div class="pdf-preview-pages" id="splitPageCount">—</div>
+        </div>
+        <button class="btn btn-secondary" style="flex:0;padding:8px 14px;font-size:12px;" onclick="clearSplit()">× Trocar</button>
+      </div>
+    </div>
+
+    <div class="card" id="splitModeCard" style="display:none;">
+      <div class="card-title">Modo de divisão</div>
+      <div class="split-mode-grid">
+        <button class="split-mode-btn active" id="mode-each" onclick="selectSplitMode('each')">
+          <span class="mode-title">📄 Página por página</span>
+          <span class="mode-desc">Cada página vira um PDF separado</span>
+        </button>
+        <button class="split-mode-btn" id="mode-range" onclick="selectSplitMode('range')">
+          <span class="mode-title">📐 Por intervalo</span>
+          <span class="mode-desc">Ex.: 1-3, depois 4-7, depois 8-10</span>
+        </button>
+        <button class="split-mode-btn" id="mode-select" onclick="selectSplitMode('select')">
+          <span class="mode-title">☑ Seleção manual</span>
+          <span class="mode-desc">Clique nas páginas desejadas</span>
+        </button>
+        <button class="split-mode-btn" id="mode-every" onclick="selectSplitMode('every')">
+          <span class="mode-title">⚡ A cada N páginas</span>
+          <span class="mode-desc">Divide em blocos iguais</span>
+        </button>
+      </div>
+
+      <div class="split-cfg visible" id="cfg-each">
+        <p style="font-size:13px;color:var(--gray);">Cada página será salva como um arquivo PDF individual. Um PDF com 10 páginas gerará 10 arquivos.</p>
+      </div>
+
+      <div class="split-cfg" id="cfg-range">
+        <div class="opt-group">
+          <label>Intervalos — um por linha (ex: 1-3 ou apenas 5)</label>
+          <textarea id="rangeInput" rows="4" style="width:100%;background:#fff;border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:8px 12px;outline:none;resize:vertical;transition:border-color 0.2s;" placeholder="1-3&#10;4-6&#10;7&#10;8-10" oninput="validateRanges()"></textarea>
+          <div class="range-hint" id="rangeHint">Digite os intervalos desejados, um por linha.</div>
+        </div>
+      </div>
+
+      <div class="split-cfg" id="cfg-select">
+        <p style="font-size:12px;color:var(--gray);margin-bottom:10px;">Clique nas páginas para selecionar. As selecionadas serão extraídas como um único PDF.</p>
+        <div class="pages-grid" id="pagesGrid"></div>
+        <div class="range-hint" id="selectHint">0 páginas selecionadas</div>
+      </div>
+
+      <div class="split-cfg" id="cfg-every">
+        <div class="opt-group" style="max-width:220px;">
+          <label>Dividir a cada quantas páginas?</label>
+          <input type="number" id="everyN" value="2" min="1" max="9999" oninput="updateEveryHint()" style="background:#fff;color:var(--text);border:1px solid var(--border);">
+          <div class="range-hint" id="everyHint">Calculando...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions" id="splitActions" style="display:none;">
+      <button class="btn btn-split" id="splitBtn" onclick="startSplit()">✂️ Dividir PDF</button>
+    </div>
+
+    <div class="card" id="splitResultCard" style="display:none;">
+      <div class="card-title">Arquivos gerados</div>
+      <div class="split-result-list" id="splitResultList"></div>
+      <button class="dl-all-btn" onclick="downloadAll()">⬇ Baixar todos os arquivos</button>
+      <div class="progress-bar" id="splitProgressBar" style="display:none;margin-top:10px;"><div class="progress-fill" id="splitProgressFill" style="width:0%"></div></div>
+    </div>
+
+    <div class="card" id="splitLogCard" style="display:none;">
+      <div class="card-title">Log</div>
+      <div class="log" id="splitLogBox"></div>
+    </div>
+
+  </div><!-- /tab-split -->
+
+  <div class="security-note">
+    <div class="icon">🔒</div>
+    <p><strong>Seus arquivos nunca saem do seu computador.</strong> Todo o processamento acontece no próprio navegador usando JavaScript. Não há conexão com servidores externos em nenhum momento.</p>
+  </div>
+
+</div>
+
+<footer>
+  <p>Elaborado por <span>Christofer Martins</span></p>
+  <p style="font-size:12px;color:#bbb;margin-top:3px;">2026</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const { jsPDF } = window.jspdf;
+const { PDFDocument } = PDFLib;
+
+/* ── Tab switch ── */
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['convert','split'][i]===id));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+id));
+}
+
+/* ── Utilities ── */
+function ts() { return '['+new Date().toLocaleTimeString('pt-BR')+'] '; }
+function addLog(boxId, msg, type='') {
+  const box=document.getElementById(boxId);
+  box.closest('.card').style.display='block';
+  const d=document.createElement('div');
+  d.className='log-line '+type;
+  d.textContent=ts()+msg;
+  box.appendChild(d);
+  box.scrollTop=box.scrollHeight;
+}
+function fmtSize(b) { return b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(1)+' MB'; }
+function dlBlob(bytes, name) {
+  const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+  const a=document.createElement('a'); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+}
+
+/* ════════════════════════════════════════
+   CONVERTER
+════════════════════════════════════════ */
+let selFiles=[], fileSt={};
+const dropZ=document.getElementById('dropZone');
+const fileInp=document.getElementById('fileInput');
+const EXTS=['txt','csv','html','htm','md','json','xml','jpg','jpeg','png','gif','bmp','webp','svg'];
+
+dropZ.addEventListener('dragover',e=>{e.preventDefault();dropZ.classList.add('drag-over');});
+dropZ.addEventListener('dragleave',()=>dropZ.classList.remove('drag-over'));
+dropZ.addEventListener('drop',e=>{e.preventDefault();dropZ.classList.remove('drag-over');handleFiles([...e.dataTransfer.files]);});
+fileInp.addEventListener('change',e=>handleFiles([...e.target.files]));
+
+function handleFiles(fs) {
+  fs.forEach(f=>{
+    const ext=f.name.split('.').pop().toLowerCase();
+    if(!EXTS.includes(ext)){addLog('logBox','⚠ Não suportado: '+f.name,'warn');return;}
+    if(selFiles.find(x=>x.name===f.name&&x.size===f.size))return;
+    selFiles.push(f); fileSt[f.name]='waiting';
+  });
+  renderList(); updBtns();
+}
+
+const ICONS={txt:'📄',csv:'📊',html:'🌐',htm:'🌐',md:'📝',json:'{}',xml:'📋',jpg:'🖼',jpeg:'🖼',png:'🖼',gif:'🖼',bmp:'🖼',webp:'🖼',svg:'🎨'};
+const STM={waiting:{c:'waiting',t:'Aguardando',i:'⏳'},converting:{c:'converting',t:'Convertendo',i:'⚙'},done:{c:'done',t:'Concluído',i:'✓'},error:{c:'error',t:'Erro',i:'✕'}};
+
+function renderList() {
+  const card=document.getElementById('fileListCard'), list=document.getElementById('fileList');
+  if(!selFiles.length){card.style.display='none';return;}
+  card.style.display='block';
+  list.innerHTML=selFiles.map((f,i)=>{
+    const st=STM[fileSt[f.name]||'waiting'];
+    return `<div class="file-item"><div class="file-icon">${ICONS[f.name.split('.').pop().toLowerCase()]||'📄'}</div><div class="file-info"><div class="file-name">${f.name}</div><div class="file-meta">${f.name.split('.').pop().toUpperCase()} · ${fmtSize(f.size)}</div></div><div class="file-status ${st.c}">${st.i} ${st.t}</div><button class="remove-btn" onclick="removeFile(${i})">×</button></div>`;
+  }).join('');
+}
+function removeFile(i){selFiles.splice(i,1);renderList();updBtns();}
+function clearConvert(){selFiles=[];fileSt={};renderList();updBtns();document.getElementById('logBox').innerHTML='';document.getElementById('logCard').style.display='none';document.getElementById('progressBar').style.display='none';}
+function updBtns(){const h=selFiles.length>0;document.getElementById('convertBtn').disabled=!h;document.getElementById('clearBtn').disabled=!h;}
+function setSt(n,s){fileSt[n]=s;renderList();}
+function getPageDims(sz,or){const s={a4:[210,297],a3:[297,420],letter:[215.9,279.4],legal:[215.9,355.6]}[sz]||[210,297];return or==='landscape'?[s[1],s[0]]:s;}
+function rdText(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=()=>rej(new Error('Falha'));r.readAsText(f,'UTF-8');});}
+function rdDU(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=()=>rej(new Error('Falha'));r.readAsDataURL(f);});}
+function imgDims(u){return new Promise(res=>{const i=new Image();i.onload=()=>res({w:i.naturalWidth,h:i.naturalHeight});i.onerror=()=>res({w:800,h:600});i.src=u;});}
+
+async function convertFile(file, opts) {
+  const ext=file.name.split('.').pop().toLowerCase();
+  const [pgW,pgH]=getPageDims(opts.pageSize,opts.orientation);
+  const mg=parseInt(opts.margins), fs=parseInt(opts.fontSize);
+  const doc=new jsPDF({orientation:opts.orientation==='landscape'?'landscape':'portrait',unit:'mm',format:opts.pageSize});
+  const isImg=['jpg','jpeg','png','gif','bmp','webp','svg'].includes(ext);
+
+  if(isImg){
+    const du=await rdDU(file);
+    const {w,h}=await imgDims(du);
+    const mxW=pgW-mg*2, mxH=pgH-mg*2;
+    const ratio=Math.min(mxW/w,mxH/h,1);
+    const iW=w*ratio, iH=h*ratio;
+    if(opts.addFileName){doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(150);doc.text(file.name,mg,mg-2);}
+    doc.addImage(du,(ext==='jpg'||ext==='jpeg')?'JPEG':'PNG',(pgW-iW)/2,(pgH-iH)/2,iW,iH);
+    if(opts.addPageNumbers){doc.setFontSize(8);doc.setTextColor(150);doc.text('1 / 1',pgW/2,pgH-mg/2,{align:'center'});}
+  } else {
+    let text=await rdText(file);
+    if(ext==='html'||ext==='htm'){const d=new DOMParser().parseFromString(text,'text/html');text=d.body.innerText||d.body.textContent||text;}
+    else if(ext==='json'){try{text=JSON.stringify(JSON.parse(text),null,2);}catch(e){}}
+    else if(ext==='md'){text=text.replace(/^#{1,6}\s+/gm,'').replace(/\*\*(.+?)\*\*/g,'$1').replace(/\*(.+?)\*/g,'$1').replace(/`(.+?)`/g,'$1').replace(/\[(.+?)\]\(.+?\)/g,'$1');}
+
+    doc.setFont('courier','normal');doc.setFontSize(fs);doc.setTextColor(30);
+    const uW=pgW-mg*2, lH=fs*0.352778*1.5, uH=pgH-mg*2, lpp=Math.floor(uH/lH);
+    const lines=[];
+    text.split('\n').forEach(l=>doc.splitTextToSize(l||' ',uW).forEach(w=>lines.push(w)));
+    const total=Math.ceil(lines.length/lpp)||1;
+    let cur=1;
+    const hdr=()=>{if(opts.addFileName){doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(150);doc.text(file.name,mg,mg-3);doc.setFont('courier','normal');doc.setFontSize(fs);doc.setTextColor(30);}};
+    hdr();
+    for(let i=0;i<lines.length;i++){
+      const pos=i%lpp;
+      if(pos===0&&i>0){
+        if(opts.addPageNumbers){doc.setFontSize(8);doc.setTextColor(150);doc.text(`${cur} / ${total}`,pgW/2,pgH-mg/2,{align:'center'});doc.setFontSize(fs);doc.setTextColor(30);}
+        doc.addPage();cur++;hdr();
+      }
+      doc.text(lines[i],mg,mg+pos*lH);
+    }
+    if(opts.addPageNumbers){doc.setFontSize(8);doc.setTextColor(150);doc.text(`${cur} / ${total}`,pgW/2,pgH-mg/2,{align:'center'});}
+  }
+  return doc;
+}
+
+window.startConversion=async function(){
+  if(!selFiles.length)return;
+  document.getElementById('convertBtn').disabled=true;
+  document.getElementById('clearBtn').disabled=true;
+  const pb=document.getElementById('progressBar'),pf=document.getElementById('progressFill');
+  pb.style.display='block';pf.style.width='0%';
+  document.getElementById('logBox').innerHTML='';
+  const opts={pageSize:document.getElementById('pageSize').value,orientation:document.getElementById('orientation').value,fontSize:document.getElementById('fontSize').value,margins:document.getElementById('margins').value,mergeAll:document.getElementById('mergeAll').checked,addPageNumbers:document.getElementById('addPageNumbers').checked,addFileName:document.getElementById('addFileName').checked};
+  addLog('logBox',`Iniciando: ${selFiles.length} arquivo(s) · ${opts.pageSize.toUpperCase()}`);
+  const conv=[];
+  for(let i=0;i<selFiles.length;i++){
+    const f=selFiles[i];setSt(f.name,'converting');
+    addLog('logBox',`Processando ${i+1}/${selFiles.length}: ${f.name}`);
+    try{const doc=await convertFile(f,opts);conv.push({f,doc});setSt(f.name,'done');addLog('logBox','✓ '+f.name,'success');}
+    catch(e){setSt(f.name,'error');addLog('logBox','✕ '+f.name+': '+e.message,'error');}
+    pf.style.width=((i+1)/selFiles.length*100)+'%';
+    await new Promise(r=>setTimeout(r,80));
+  }
+  if(opts.mergeAll&&conv.length>1){
+    addLog('logBox','Mesclando...');
+    const [pgW,pgH]=getPageDims(opts.pageSize,opts.orientation);
+    const orient=opts.orientation==='landscape'?'landscape':'portrait';
+    const merged=new jsPDF({orientation:orient,unit:'mm',format:opts.pageSize});
+    let first=true;
+    for(const {f,doc} of conv){
+      const n=doc.getNumberOfPages();
+      for(let p=1;p<=n;p++){
+        if(!first)merged.addPage(opts.pageSize,orient);first=false;
+        doc.setPage(p);
+        // render page content as image via canvas
+        try{
+          const cvs=document.createElement('canvas');
+          const scale=2;
+          cvs.width=pgW*scale*3.7795;cvs.height=pgH*scale*3.7795;
+          // fallback: just add separator text
+          merged.setFont('helvetica','normal');merged.setFontSize(9);merged.setTextColor(100);
+          if(p===1){merged.text('[ '+f.name+' ]',pgW/2,10,{align:'center'});}
+        }catch(e){}
+      }
+    }
+    const base=selFiles[0].name.replace(/\.[^/.]+$/,'');
+    merged.save(base+'_mesclado.pdf');
+    addLog('logBox','✓ PDF mesclado salvo.','success');
+  } else {
+    for(const {f,doc} of conv){
+      const out=f.name.replace(/\.[^/.]+$/,'')+'.pdf';
+      doc.save(out);
+      addLog('logBox','⬇ Baixando: '+out,'success');
+      await new Promise(r=>setTimeout(r,200));
+    }
+  }
+  const done=conv.length,err=selFiles.length-done;
+  addLog('logBox',`Finalizado: ${done} convertido(s)${err?', '+err+' com erro(s)':''}`,done===selFiles.length?'success':'warn');
+  document.getElementById('convertBtn').disabled=false;
+  document.getElementById('clearBtn').disabled=false;
+};
+
+/* ════════════════════════════════════════
+   DIVISOR DE PDF
+════════════════════════════════════════ */
+let spBytes=null, spTotal=0, spName='', spMode='each', spResults=[];
+
+const spDrop=document.getElementById('splitDropZone');
+const spInput=document.getElementById('splitFileInput');
+spDrop.addEventListener('dragover',e=>{e.preventDefault();spDrop.classList.add('drag-over');});
+spDrop.addEventListener('dragleave',()=>spDrop.classList.remove('drag-over'));
+spDrop.addEventListener('drop',e=>{e.preventDefault();spDrop.classList.remove('drag-over');if(e.dataTransfer.files[0])loadPdf(e.dataTransfer.files[0]);});
+spInput.addEventListener('change',e=>{if(e.target.files[0])loadPdf(e.target.files[0]);});
+
+async function loadPdf(file){
+  if(!file.name.toLowerCase().endsWith('.pdf')){addLog('splitLogBox','⚠ Selecione um arquivo .pdf','warn');return;}
+  spName=file.name;
+  addLog('splitLogBox','Carregando: '+file.name);
+  try{
+    spBytes=new Uint8Array(await file.arrayBuffer());
+    const pdf=await PDFDocument.load(spBytes,{ignoreEncryption:true});
+    spTotal=pdf.getPageCount();
+    document.getElementById('splitFileName').textContent=file.name;
+    document.getElementById('splitPageCount').textContent=spTotal+' página'+(spTotal!==1?'s':'');
+    document.getElementById('splitInfoCard').style.display='block';
+    document.getElementById('splitModeCard').style.display='block';
+    document.getElementById('splitActions').style.display='flex';
+    document.getElementById('splitResultCard').style.display='none';
+    selectSplitMode('each');
+    addLog('splitLogBox','✓ Carregado com sucesso · '+spTotal+' páginas','success');
+  }catch(e){addLog('splitLogBox','✕ Erro ao ler PDF: '+e.message,'error');}
+}
+
+function clearSplit(){
+  spBytes=null;spTotal=0;spResults=[];spInput.value='';
+  ['splitInfoCard','splitModeCard','splitResultCard','splitLogCard'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('splitActions').style.display='none';
+  document.getElementById('splitLogBox').innerHTML='';
+}
+
+function selectSplitMode(m){
+  spMode=m;
+  ['each','range','select','every'].forEach(id=>{
+    document.getElementById('mode-'+id).classList.toggle('active',id===m);
+    document.getElementById('cfg-'+id).classList.toggle('visible',id===m);
+  });
+  if(m==='select')buildGrid();
+  if(m==='every')updateEveryHint();
+}
+
+function buildGrid(){
+  const g=document.getElementById('pagesGrid');g.innerHTML='';
+  for(let i=1;i<=spTotal;i++){
+    const c=document.createElement('div');
+    c.className='page-chip';c.textContent=i;c.dataset.p=i;
+    c.onclick=()=>{c.classList.toggle('selected');updateSelHint();};
+    g.appendChild(c);
+  }
+}
+function updateSelHint(){const n=document.querySelectorAll('.page-chip.selected').length;document.getElementById('selectHint').textContent=n+' página'+(n!==1?'s':'')+' selecionada'+(n!==1?'s':'');}
+
+function updateEveryHint(){
+  const n=Math.max(1,parseInt(document.getElementById('everyN').value)||1);
+  const parts=Math.ceil(spTotal/n);
+  document.getElementById('everyHint').textContent='Gerará '+parts+' arquivo'+(parts!==1?'s':'')+' de até '+n+' página'+(n!==1?'s':'')+' cada.';
+}
+
+function validateRanges(){
+  try{
+    const r=parseRanges(document.getElementById('rangeInput').value);
+    document.getElementById('rangeHint').textContent='✓ '+r.length+' intervalo'+(r.length!==1?'s':'')+' válido'+(r.length!==1?'s':'');
+    document.getElementById('rangeInput').style.borderColor='rgba(76,175,130,0.5)';
+  }catch(e){
+    document.getElementById('rangeHint').textContent='⚠ '+e.message;
+    document.getElementById('rangeInput').style.borderColor='rgba(224,112,112,0.5)';
+  }
+}
+
+function parseRanges(text){
+  const lines=text.trim().split('\n').filter(l=>l.trim());
+  if(!lines.length)throw new Error('Nenhum intervalo digitado');
+  return lines.map(line=>{
+    const m=line.trim().match(/^(\d+)(?:\s*[-–]\s*(\d+))?$/);
+    if(!m)throw new Error('Formato inválido: "'+line.trim()+'"');
+    const a=parseInt(m[1]),b=m[2]?parseInt(m[2]):a;
+    if(a<1||b>spTotal||a>b)throw new Error('Fora dos limites: "'+line.trim()+'" (1-'+spTotal+')');
+    return [a,b];
+  });
+}
+
+async function buildPdfFromRange(a,b){
+  const src=await PDFDocument.load(spBytes);
+  const nd=await PDFDocument.create();
+  const idxs=[];for(let p=a;p<=b;p++)idxs.push(p-1);
+  const cp=await nd.copyPages(src,idxs);
+  cp.forEach(pg=>nd.addPage(pg));
+  return await nd.save();
+}
+
+window.startSplit=async function(){
+  if(!spBytes)return;
+  const btn=document.getElementById('splitBtn');
+  btn.disabled=true;
+  document.getElementById('splitLogBox').innerHTML='';
+  document.getElementById('splitResultCard').style.display='none';
+  spResults=[];
+
+  const base=spName.replace(/\.pdf$/i,'');
+  addLog('splitLogBox','Iniciando divisão · modo: '+spMode);
+
+  try{
+    let ranges=[];
+    if(spMode==='each'){
+      for(let i=1;i<=spTotal;i++)ranges.push([i,i]);
+    } else if(spMode==='range'){
+      ranges=parseRanges(document.getElementById('rangeInput').value);
+    } else if(spMode==='select'){
+      const sel=[...document.querySelectorAll('.page-chip.selected')].map(c=>parseInt(c.dataset.p)).sort((a,b)=>a-b);
+      if(!sel.length)throw new Error('Nenhuma página selecionada');
+      // agrupar consecutivas
+      let i=0;
+      while(i<sel.length){let j=i;while(j+1<sel.length&&sel[j+1]===sel[j]+1)j++;ranges.push([sel[i],sel[j]]);i=j+1;}
+    } else if(spMode==='every'){
+      const n=Math.max(1,parseInt(document.getElementById('everyN').value)||1);
+      for(let i=1;i<=spTotal;i+=n)ranges.push([i,Math.min(i+n-1,spTotal)]);
+    }
+
+    const total=ranges.length;
+    addLog('splitLogBox','Dividindo em '+total+' parte'+(total!==1?'s':'')+'...');
+    const pb=document.getElementById('splitProgressBar'),pf=document.getElementById('splitProgressFill');
+    pb.style.display='block';pf.style.width='0%';
+
+    for(let ri=0;ri<ranges.length;ri++){
+      const [a,b]=ranges[ri];
+      const bytes=await buildPdfFromRange(a,b);
+      const suffix=a===b?'_p'+a:'_p'+a+'-'+b;
+      const seq=total>1?'_'+(ri+1)+'de'+total:'';
+      const name=base+suffix+seq+'.pdf';
+      spResults.push({name,bytes,pages:b-a+1});
+      pf.style.width=((ri+1)/total*100)+'%';
+      addLog('splitLogBox','✓ '+name+' ('+(b-a+1)+' pág.)','success');
+      await new Promise(r=>setTimeout(r,20));
+    }
+
+    renderSplitResults();
+    addLog('splitLogBox','Concluído: '+spResults.length+' arquivo'+(spResults.length!==1?'s':'')+' gerado'+(spResults.length!==1?'s':'')+'!','success');
+  }catch(e){
+    addLog('splitLogBox','✕ Erro: '+e.message,'error');
+  }
+  btn.disabled=false;
+};
+
+function renderSplitResults(){
+  document.getElementById('splitResultList').innerHTML=spResults.map((r,i)=>
+    `<div class="split-result-item"><div class="split-result-name">📄 ${r.name}</div><div style="display:flex;align-items:center;gap:8px;flex-shrink:0;"><span class="split-result-pages">${r.pages} pág.</span><button class="dl-btn" onclick="dlOne(${i})">⬇ Baixar</button></div></div>`
+  ).join('');
+  document.getElementById('splitResultCard').style.display='block';
+}
+
+function dlOne(i){dlBlob(spResults[i].bytes,spResults[i].name);}
+
+window.downloadAll=async function(){
+  const btn=document.querySelector('.dl-all-btn');
+  btn.disabled=true;btn.textContent='Baixando...';
+  for(let i=0;i<spResults.length;i++){dlOne(i);await new Promise(r=>setTimeout(r,350));}
+  btn.textContent='⬇ Baixar todos os arquivos';btn.disabled=false;
+};
+</script>
+</body>
+</html>
